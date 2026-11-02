@@ -2,7 +2,7 @@
 
 A stealth-puzzle adventure about a gentleman thief aboard vintage passenger trains.
 
-**Play:** https://lift-game-mu.vercel.app
+**Play:** https://liftgame.vercel.app
 
 Steal. Collect. Redistribute. Repeat. Ride procedurally generated trains, observe passengers, lift their valuables through tactile sleight-of-hand minigames, pick locks, dodge conductors and detectives, then decide back at the hideout whether to keep, fence, give away or return what you took.
 
