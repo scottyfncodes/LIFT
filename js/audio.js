@@ -34,7 +34,7 @@ export function setEnabled(sound, mus) {
 }
 export function suspend() { if (ctx && ctx.state === 'running') ctx.suspend(); }
 export function resume() { if (ctx && ctx.state === 'suspended') ctx.resume(); }
-const now = () => ctx.currentTime;
+const now = () => (ctx ? ctx.currentTime : 0);
 
 function noise(dur, { freq = 1000, q = 1, type = 'bandpass', gain = 0.3, attack = 0.002, t = now(), bus = sfxBus, decay } = {}) {
   if (!ctx) return;
@@ -153,6 +153,10 @@ export const sfx = {
   chime() { [783.99, 659.25, 523.25].forEach((f, i) => tone(f, 0.6, { gain: 0.05, t: now() + i * 0.25, type: 'triangle', release: 1 })); },
   card() { noise(0.04, { freq: 3000, q: 2, gain: 0.08 }); },
   gasp() { noise(0.35, { freq: 1200, q: 1.5, gain: 0.1, attack: 0.05 }); },
+  punch() { noise(0.025, { freq: 5200, q: 5, gain: 0.22 }); tone(1900, 0.03, { type: 'square', gain: 0.025 }); noise(0.04, { freq: 2400, q: 3, gain: 0.08, t: now() + 0.07 }); },
+  ret() { [659.25, 783.99, 987.77, 1318.5].forEach((f, i) => tone(f, 0.7, { gain: 0.05, t: now() + i * 0.08, type: 'triangle', release: 1.1 })); noise(0.25, { freq: 8000, q: 1, gain: 0.02, t: now() + 0.2 }); },
+  witness() { tone(392, 0.25, { type: 'triangle', gain: 0.05 }); tone(587.3, 0.4, { type: 'triangle', gain: 0.05, t: now() + 0.12 }); },
+  murmur(v = 1) { noise(0.9, { freq: 520 + Math.random() * 300, q: 2.2, gain: 0.025 * v, attack: 0.25, decay: 0.9 }); },
 };
 
 // ---------- music: warm period jazz-lounge generative ----------

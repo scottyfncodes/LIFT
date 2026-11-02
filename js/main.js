@@ -1,7 +1,8 @@
 // LIFT — boot, screen routing and the main loop
 import { load, save, freshState, wipe } from './save.js';
 import { initAudio, setEnabled, updateAudio, startMusic, setMood, stopMusic, suspend, resume } from './audio.js';
-import { renderTitle, renderHideout, renderSettlement } from './screens.js';
+import { renderTitle, renderDepot, renderReport } from './screens.js';
+import { missionById } from './missions.js';
 import { RunController } from './run.js';
 import { closeModal, clearToasts } from './ui.js';
 
@@ -21,7 +22,7 @@ export function goTitle() {
   setScreenMode(true);
   renderTitle(screenEl(), G, {
     onContinue: () => { audioOn(); continueGame(); },
-    onNew: () => { audioOn(); wipe(); G.S = freshState(); persist(); goHideout(true); },
+    onNew: () => { audioOn(); const st = G.S.settings; wipe(); G.S = freshState(st); persist(); goHideout(true); },
     onSettings: applySettings,
   });
 }
@@ -30,14 +31,14 @@ export function goHideout(fresh = false) {
   clearToasts();
   setScreenMode(true);
   startMusic('hideout'); setMood('hideout');
-  renderHideout(screenEl(), G, { onBoard: boardTrain, onTitle: goTitle, persist, onSettings: applySettings, fresh });
+  renderDepot(screenEl(), G, { onBoard: (route, mid) => boardTrain(route, null, mid), onTitle: goTitle, persist, onSettings: applySettings, fresh });
 }
 function goSettlement(result) {
   endRunController();
   clearToasts();
   setScreenMode(true);
   setMood('hideout');
-  renderSettlement(screenEl(), G, result, { persist, onDone: () => goHideout() });
+  renderReport(screenEl(), G, result, { persist, onDone: () => goHideout() });
 }
 function continueGame() {
   const S = G.S;
@@ -45,27 +46,27 @@ function continueGame() {
   if (S.run && S.run.run && S.run.trainId) return boardTrain(S.run.trainId, S.run);
   goHideout();
 }
-function boardTrain(trainId, saved = null) {
+function boardTrain(trainId, saved = null, missionId = null) {
   audioOn();
   screenEl().innerHTML = '';
   setScreenMode(false);
   clearToasts();
   setMood('calm');
   try {
-    G.run = makeRun(trainId, saved);
+    G.run = makeRun(trainId, saved, missionId);
   } catch (e) {
     console.error('Could not resume the journey', e);
     G.run = null; G.S.run = null; persist();
     goHideout();
   }
 }
-function makeRun(trainId, saved) {
+function makeRun(trainId, saved, missionId) {
   return new RunController(G.S, trainId, {
     onEnd: result => { G.run = null; goSettlement(result); },
     onQuit: () => { G.run = null; goHideout(); },
     persist,
     onSettings: applySettings,
-  }, saved);
+  }, saved, saved ? null : missionById(missionId));
 }
 function endRunController() {
   if (G.run) { G.run.destroy(); G.run = null; }
