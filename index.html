@@ -1,19 +1,27 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#1a1210">
+<meta name="description" content="LIFT — a stealth-puzzle adventure about a gentleman thief aboard vintage passenger trains.">
 <title>LIFT</title>
-<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Cormorant+Garamond:ital@0;1&family=Josefin+Sans:wght@600&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#1a1210;--paper:#f4e9d3;--brass:#c9a24a;--burg:#6e1f2b}
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 30%,#3a2418,var(--bg));color:var(--paper);font-family:"Cormorant Garamond",Georgia,serif;padding:16px;box-sizing:border-box}
-.card{max-width:520px;text-align:center;border:2px solid var(--brass);border-radius:14px;padding:32px 24px;background:rgba(20,12,8,.6)}
-h1{font-family:Limelight,serif;font-size:72px;letter-spacing:.2em;margin:0;color:var(--brass)}
-.tag{font-style:italic;font-size:20px;margin:8px 0 24px}
-.status{font-family:"Josefin Sans",sans-serif;font-size:13px;letter-spacing:.15em;text-transform:uppercase;background:var(--burg);display:inline-block;padding:6px 14px;border-radius:20px}
-ul{text-align:left;font-size:17px;line-height:1.6}
-</style></head><body><div class="card">
-<h1>LIFT</h1><p class="tag">Steal. Collect. Redistribute. Repeat.</p>
-<span class="status">In development</span>
-<p>The playable build is not ready yet. Built so far:</p>
-<ul><li>World, train and passenger generation</li><li>Passenger AI, suspicion and security</li><li>Pickpocketing and lockpicking minigames</li><li>Collectibles, economy, audio and saving</li></ul>
-<p>Coming next: controls, screens, hideout and the full playable train.</p>
-</div></body></html>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Limelight&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Josefin+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="world" aria-label="The train"></canvas>
+  <div id="hud" hidden></div>
+  <div id="screen"></div>
+  <canvas id="mini" hidden></canvas>
+  <div id="miniUi" hidden><button class="btn ghost" id="miniAbort">Back off</button></div>
+  <div id="modal" hidden></div>
+  <div id="toasts" aria-live="polite"></div>
+  <noscript><div class="noscript">LIFT needs JavaScript to run.</div></noscript>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
