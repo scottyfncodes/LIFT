@@ -1,7 +1,7 @@
 {
   "name": "LIFT",
   "short_name": "LIFT",
-  "description": "A stealth-puzzle adventure about a gentleman thief aboard vintage passenger trains.",
+  "description": "A railway mystery. A veteran ticket inspector lifts stolen belongings back from pickpockets and returns them unnoticed.",
   "start_url": "/",
   "scope": "/",
   "display": "fullscreen",
