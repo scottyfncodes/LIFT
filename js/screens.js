@@ -23,7 +23,10 @@ export function renderTitle(root, G, cb) {
   const B = (label, kind, fn, sub) => { const b = el('button', { class: 'btn ' + kind }, label, sub ? el('small', {}, sub) : null); b.addEventListener('click', () => { initAudio(); sfx.ui(); fn(); }); btns.append(b); return b; };
   if (G.hasSave) {
     const rep = reputation(S);
-    B('Continue', 'primary', cb.onContinue, `${money(S.wealth)} · ${S.stats.runs} journey${S.stats.runs === 1 ? '' : 's'} · ${rep.name}`);
+    const sub = S.pending ? `Settle your haul from ${S.pending.trainName}`
+      : S.run && S.run.trainId && TRAINS[S.run.trainId] ? `Resume your journey aboard ${TRAINS[S.run.trainId].name}`
+        : `${money(S.wealth)} · ${S.stats.runs} journey${S.stats.runs === 1 ? '' : 's'} · ${rep.name}`;
+    B('Continue', 'primary', cb.onContinue, sub);
     B('New game', '', () => {
       modal({ title: 'Start over?', body: '<p>Your hideout, collection and reputation will be erased.</p>', dismiss: false, buttons: [{ label: 'Keep my save', value: false }, { label: 'Start fresh', value: true, kind: 'danger' }] })
         .then(v => { if (v) cb.onNew(); });
@@ -407,6 +410,7 @@ export function renderSettlement(root, G, R, cb) {
     sfx.cash();
     S._lastCause = cause;
     const notes = applySettlement(S, R, decisions, cause);
+    S.pending = null;
     cb.persist();
     if (notes.length) modal({ title: 'News from the hideout', body: el('div', {}, notes.map(n => el('p', {}, n))), buttons: [{ label: 'Onward', value: true, kind: 'primary' }], dismiss: true }).then(() => cb.onDone());
     else cb.onDone();

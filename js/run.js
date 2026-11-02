@@ -20,10 +20,10 @@ const HEAT_NAMES = ['Calm', 'Whispers', 'Investigation', 'Lockdown'];
 const MOVING_STATES = new Set(['walk', 'leaving', 'chase', 'approach', 'respond', 'hunt', 'patrol', 'flee', 'rival', 'post']);
 
 export class RunController {
-  constructor(S, trainId, cb) {
+  constructor(S, trainId, cb, saved = null) {
     this.S = S; this.cb = cb;
     this.tr = TRAINS[trainId];
-    this.run = generateRun(trainId, S);
+    this.run = saved ? saved.run : generateRun(trainId, S);
     this.run.stash = this.run.stash || [];
     this.held = [];             // items an informant holds for you
     this.goodwillGain = 0;
@@ -39,6 +39,7 @@ export class RunController {
     this.layers = new Map();
     const P = this.run.player;
     this.homePos = { x: P.x, y: P.y };
+    if (saved) this.restore(saved.ctl || {});
     this.sim = new Sim(this.run, S, {
       toast: (t, k) => this.toast(t, k),
       end: r => this.queueEnd(r),
@@ -50,6 +51,7 @@ export class RunController {
       observed: (p, intel) => this.onObserved(p, intel),
     });
     this.seenCars.add(P.car);
+    if (saved) this.repairAfterRestore();
 
     this.cv = document.getElementById('world');
     this.c = this.cv.getContext('2d');
@@ -65,9 +67,53 @@ export class RunController {
     this.cam.x = this.targetCamX();
     startTrainAmbience(this.tr.time === 'night');
     setMood('calm');
-    whistle(true);
-    setTimeout(() => this.toast(`${this.tr.name} departs ${this.tr.stations[0]}. Next stop: ${this.tr.stations[1]}.`, 'event'), 400);
-    if (this.tips) this.tipT = 1.2;
+    if (saved) {
+      setTimeout(() => this.toast(`Journey resumed aboard ${this.tr.name}.`, 'event'), 400);
+    } else {
+      whistle(true);
+      setTimeout(() => this.toast(`${this.tr.name} departs ${this.tr.stations[0]}. Next stop: ${this.tr.stations[1]}.`, 'event'), 400);
+      if (this.tips) this.tipT = 1.2;
+    }
+    this.saveT = 0;
+    this.saveNow();
+  }
+
+  // ================= mid-trip save =================
+  snapshot() {
+    return {
+      v: 1, trainId: this.tr.id, run: this.run,
+      ctl: {
+        held: this.held, goodwillGain: this.goodwillGain, flourishes: this.flourishes,
+        confiscated: this.confiscated || [], seenCars: [...this.seenCars], homePos: this.homePos,
+        tips: this.tips, tipStep: this.tipStep, hideLav: this.hideLav ? this.hideLav.id : null,
+      },
+    };
+  }
+  saveNow() {
+    if (this.ended || this.endReason) return;
+    this.S.run = this.snapshot();
+    this.cb.persist();
+  }
+  restore(c) {
+    this.held = c.held || [];
+    this.goodwillGain = c.goodwillGain || 0;
+    if (c.flourishes != null) this.flourishes = c.flourishes;
+    this.confiscated = c.confiscated || [];
+    this.seenCars = new Set(c.seenCars || []);
+    if (c.homePos) this.homePos = c.homePos;
+    this.tips = !!c.tips; this.tipStep = c.tipStep || 0; this.tipT = this.tips ? 3 : 0;
+    this._hideLavId = c.hideLav;
+  }
+  // Undo states that only made sense while a dialog or timer was open when the page went away.
+  repairAfterRestore() {
+    const run = this.run, sim = this.sim;
+    for (const p of run.pax) {
+      if (p.state === 'searching') { p.state = p.posted ? 'post' : 'cooldown'; p.actT = 4; p.susp = Math.min(p.susp || 0, 40); p.path = null; }
+      if (p.rival && !p.left) { if (p.triggered && p.state !== 'flee') p.state = 'flee'; if (p.state === 'flee') this.rivalFlee(p); }
+    }
+    sim.rivalRef = run.pax.find(p => p.rival && !p.left) || null;
+    if (this._hideLavId) for (const car of run.carriages) for (const pr of car.props) if (pr.id === this._hideLavId) this.hideLav = pr;
+    run.coinFx = null;
   }
 
   // ================= lifecycle =================
@@ -98,6 +144,8 @@ export class RunController {
       this.readInput();
       this.sim.update(dt, this.input);
       this.postUpdate(dt);
+      this.saveT -= dt;
+      if (this.saveT <= 0) { this.saveT = 4; this.saveNow(); }
     }
     if (this.endReason && !this.finishing) { this.finishing = true; this.finish(this.endReason); return; }
     this.render(dt);
@@ -1012,11 +1060,12 @@ export class RunController {
     this.h.pk = el('div', { class: 'pk' }, '');
     const top = el('div', { class: 'hud-top' }, pauseB, el('div', { class: 'hud-journey' }, this.h.tn, this.h.st, this.h.leg), this.h.heat, el('div', { class: 'hud-purse' }, this.h.cash, this.h.pk));
     this.h.map = el('div', { class: 'hud-map' });
+    this.segs = new Map();
     const W = this.run.worldW;
     for (const car of this.run.carriages) {
       const seg = el('div', { class: 'seg' + (car.restricted ? ' restricted' : '') });
       seg.style.position = 'absolute'; seg.style.left = (car.x0 / W * 100) + '%'; seg.style.width = (car.w / W * 100) + '%';
-      car._seg = seg; this.h.map.append(seg);
+      this.segs.set(car.idx, seg); this.h.map.append(seg);
     }
     this.h.me = el('div', { class: 'dot me' }); this.h.map.append(this.h.me);
     this.h.cops = [];
@@ -1083,7 +1132,7 @@ export class RunController {
     // map
     const W = run.worldW;
     const curCar = sim.carAt(P.x);
-    for (const car of run.carriages) car._seg.classList.toggle('cur', car === curCar);
+    for (const car of run.carriages) this.segs.get(car.idx).classList.toggle('cur', car === curCar);
     this.h.me.style.left = (P.x / W * 100) + '%';
     const showAll = !!S.upgrades.net_lookout;
     const cops = run.pax.filter(p => !p.left && (p.staff === 'conductor' || p.staff === 'detective') && (showAll || sim.carAt(p.x) === curCar));
@@ -1166,6 +1215,9 @@ export class RunController {
       caughtCount: run.caughtCount, confiscated: (this.confiscated || []).length, familyHelped: run.familyHelped,
       log: run.log.slice(-5),
     };
+    S.run = null;
+    S.pending = result;
+    this.cb.persist();
     const go = () => { this.cb.onEnd(result); };
     if (reason === 'caught' || reason === 'abandoned') {
       stopTrainAmbience();

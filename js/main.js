@@ -8,7 +8,7 @@ import { closeModal, clearToasts } from './ui.js';
 export const G = { S: load(), run: null, hasSave: false };
 G.hasSave = !!G.S;
 if (!G.S) G.S = freshState();
-G.S.run = null; // runs are not resumable mid-journey
+// A saved mid-trip run (S.run) or an unsettled haul (S.pending) is picked up by Continue.
 setEnabled(G.S.settings.sound, G.S.settings.music);
 
 export function persist() { save(G.S); G.hasSave = true; }
@@ -20,7 +20,7 @@ export function goTitle() {
   endRunController();
   setScreenMode(true);
   renderTitle(screenEl(), G, {
-    onContinue: () => { audioOn(); goHideout(); },
+    onContinue: () => { audioOn(); continueGame(); },
     onNew: () => { audioOn(); wipe(); G.S = freshState(); persist(); goHideout(true); },
     onSettings: applySettings,
   });
@@ -39,18 +39,33 @@ function goSettlement(result) {
   setMood('hideout');
   renderSettlement(screenEl(), G, result, { persist, onDone: () => goHideout() });
 }
-function boardTrain(trainId) {
+function continueGame() {
+  const S = G.S;
+  if (S.pending) return goSettlement(S.pending);
+  if (S.run && S.run.run && S.run.trainId) return boardTrain(S.run.trainId, S.run);
+  goHideout();
+}
+function boardTrain(trainId, saved = null) {
   audioOn();
   screenEl().innerHTML = '';
   setScreenMode(false);
   clearToasts();
   setMood('calm');
-  G.run = new RunController(G.S, trainId, {
+  try {
+    G.run = makeRun(trainId, saved);
+  } catch (e) {
+    console.error('Could not resume the journey', e);
+    G.run = null; G.S.run = null; persist();
+    goHideout();
+  }
+}
+function makeRun(trainId, saved) {
+  return new RunController(G.S, trainId, {
     onEnd: result => { G.run = null; goSettlement(result); },
     onQuit: () => { G.run = null; goHideout(); },
     persist,
     onSettings: applySettings,
-  });
+  }, saved);
 }
 function endRunController() {
   if (G.run) { G.run.destroy(); G.run = null; }
@@ -72,9 +87,10 @@ function frame(now) {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) { suspend(); if (G.run) G.run.pause(true); }
+  if (document.hidden) { suspend(); if (G.run) { G.run.saveNow(); G.run.pause(true); } }
   else resume();
 });
+window.addEventListener('pagehide', () => { if (G.run) G.run.saveNow(); });
 // First interaction unlocks audio on mobile
 window.addEventListener('pointerdown', () => { if (G.hasSave || G.run) audioOn(); }, { once: true });
 
